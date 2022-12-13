@@ -8,6 +8,9 @@
 #include <windows.h>
 #include <string>
 
+#include <fcntl.h>
+#include <io.h>
+
 #include <d3dx9.h>
 #include "MinHook.h"
 #pragma comment(lib, "libMinHook.x86.lib")
@@ -60,77 +63,6 @@ void UnFuck(DWORD addr, int size)
 	VirtualProtect((PVOID)addr, size, PAGE_EXECUTE_READWRITE, &d);
 }
 
-/*
-int main()
-{
-	HANDLE hProcess = 0;
-
-	HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
-
-	if (hwnd == NULL)
-	{
-		Log("Cannot find the game window.");
-	}
-	else
-	{
-		Log("I find game window!");
-		GetWindowThreadProcessId(hwnd, &processID);
-		hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
-
-		if (processID == NULL)
-		{
-			Log("Cannot retrieve process.");
-		}
-		else
-		{
-			Log("Process exist!");
-		}
-
-		//printf("azmp.dll 0x%x", GetBaseAddrSAMP());
-
-		PVOID addr = VirtualAllocEx(hProcess, NULL, 0x5000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-		Log("ADDR = %.8x", addr);
-
-		WriteProcessMemory(hProcess, addr, "azmp.dll", 9, NULL);
-
-		HANDLE hthread = CreateRemoteThread(hProcess,NULL,0,(LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("kernel32"), "LoadLibraryA"),addr,0,NULL);
-
-		CloseHandle(hthread);
-
-		Log("addr 0x%x", GetBaseAddr());
-
-		while (true)
-		{
-			if (GetAsyncKeyState('J'))
-			{
-				AddMessageJumpQ("cheat by Vadim Boev is loaded", 7000, 0, false);
-
-				DWORD player;
-				float GetHealth = 0;
-				ReadProcessMemory(hProcess, (LPCVOID)(0xB6F5F0), &player, sizeof(player), NULL);
-				ReadProcessMemory(hProcess, (LPCVOID)(player + 0x540), &GetHealth, sizeof(GetHealth), NULL);
-				Log("Health value: %f", GetHealth);
-
-
-				//float gravity = 0.001f;
-				//UnFuck(0x863984, 4);
-				//WriteProcessMemory(hProcess, (LPVOID)0x863984, &grav, sizeof(grav), NULL);
-
-				//ReadProcessMemory(hProcess, (LPCVOID)(p1 + 0x30), &player.GetPosition().x, sizeof(player.GetPosition().x), NULL);
-				//ReadProcessMemory(hProcess, (LPCVOID)(p1 + 0x34), &player.GetPosition().y, sizeof(player.GetPosition().y), NULL);
-				//ReadProcessMemory(hProcess, (LPCVOID)(p1 + 0x38), &player.GetPosition().z, sizeof(player.GetPosition().z), NULL);
-			}
-			Sleep(1000);
-		}
-	}
-
-	CloseHandle(hProcess);
-}
-
-*/
-
-#include <fcntl.h>
-#include <io.h>
 bool CreateConsole()
 {
 	int hConHandle = 0;
@@ -394,7 +326,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		case DLL_PROCESS_ATTACH:
 		{
-			CreateConsole();
+			//CreateConsole();
 			Log("AMAZING ONLINE injected!");
 			DisableThreadLibraryCalls(hModule);
 
