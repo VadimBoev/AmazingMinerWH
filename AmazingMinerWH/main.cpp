@@ -275,10 +275,6 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 				}
 			}
 		}
-		//ImGui::ShowMetricsWindow((bool*)true);
-
-		//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
 		ImGui::EndFrame();
 		ImGui::Render();
 		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());

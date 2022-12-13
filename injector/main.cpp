@@ -113,7 +113,7 @@ int main()
         GetWindowThreadProcessId(hwnd, &processID);
         hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
 
-		if (unload_dll_by_name(hProcess, (char*)"G:\\sampr3\\AmazingMinerWH.asi"))
+		if (unload_dll_by_name(hProcess, (char*)"AmazingMinerWH.asi")) //G:\\sampr3\\AmazingMinerWH.asi
 		{
 			printf("unload dll!");
 		}
@@ -122,7 +122,7 @@ int main()
 			printf("dll not found in memory!");
 		}
 
-        if (load_dll(hProcess, (char*)"G:\\sampr3\\AmazingMinerWH.asi"))
+        if (load_dll(hProcess, (char*)"AmazingMinerWH.asi"))
         {
             printf("access!");
         }
@@ -133,5 +133,5 @@ int main()
     }
 	system("pause");
 
-	unload_dll_by_name(hProcess, (char*)"G:\\sampr3\\AmazingMinerWH.asi");
+	unload_dll_by_name(hProcess, (char*)"AmazingMinerWH.asi");
 }
