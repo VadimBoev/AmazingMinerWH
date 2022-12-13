@@ -2,4 +2,4 @@
 
 Имба
 
-<img src="https://raw.githubusercontent.com/VadimBoev/AmazingMinerWH/main/screen.jpg" data-canonical-src="https://raw.githubusercontent.com/VadimBoev/AmazingMinerWH/main/screen.jpg" width="200" height="400" /> 
+<img src="https://github.com/VadimBoev/AmazingMinerWH/blob/master/screen.jpg?raw=true" data-canonical-src="https://github.com/VadimBoev/AmazingMinerWH/blob/master/screen.jpg?raw=true" width="200" height="400" /> 
