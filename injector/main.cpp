@@ -95,6 +95,8 @@ HMODULE load_dll(HANDLE proc, const char* dll_path)
 	return (HMODULE)dll_handle;
 }
 
+#include <filesystem>
+#include <iostream>
 int main()
 {
     HANDLE hProcess = 0;
@@ -102,6 +104,9 @@ int main()
 
     HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
 	//HWND hwnd = FindWindowA(NULL, "GTA:SA:MP");
+
+	std::string path = std::filesystem::current_path().string();
+	path += "\\AmazingMinerWH.asi";
 
     if (hwnd == NULL)
     {
@@ -113,7 +118,7 @@ int main()
         GetWindowThreadProcessId(hwnd, &processID);
         hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
 
-		if (unload_dll_by_name(hProcess, (char*)"AmazingMinerWH.asi")) //G:\\sampr3\\AmazingMinerWH.asi
+		if (unload_dll_by_name(hProcess, (char*)path.c_str())) //G:\\sampr3\\AmazingMinerWH.asi
 		{
 			printf("unload dll!");
 		}
@@ -122,7 +127,7 @@ int main()
 			printf("dll not found in memory!");
 		}
 
-        if (load_dll(hProcess, (char*)"AmazingMinerWH.asi"))
+        if (load_dll(hProcess, (char*)path.c_str()))
         {
             printf("access!");
         }
@@ -133,5 +138,5 @@ int main()
     }
 	system("pause");
 
-	unload_dll_by_name(hProcess, (char*)"AmazingMinerWH.asi");
+	unload_dll_by_name(hProcess, (char*)path.c_str());
 }
