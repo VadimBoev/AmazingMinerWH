@@ -125,22 +125,6 @@ void* get_function_address(int VTableIndex)
 	return (*reinterpret_cast<void***>(find_device(0x128000)))[VTableIndex];
 }
 
-WNDPROC oWndProc;
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-	ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
-
-	if (ImGui::GetIO().WantTextInput)
-	{
-		((void (*)())(0x53F1E0))(); // CPad::ClearKeyboardHistory
-		return 1;
-	}
-
-	return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
-}
-
-
 D3DXVECTOR2 CalcScreenCoords(D3DXVECTOR3 vecWorld)
 {
 	float x, y, z;
@@ -204,6 +188,22 @@ D3DXVECTOR3 GetPedCoordinates()
 int objectId[4] = { 7234, 7235, 7236, 7237 };
 const char* objectName[4] = { "coal", "iron", "gold", "DIAMONDS" };
 
+WNDPROC oWndProc;
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+
+	if (ImGui::GetIO().WantTextInput)
+	{
+		((void (*)())(0x53F1E0))(); // CPad::ClearKeyboardHistory
+		return 1;
+	}
+
+	return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
+}
+
+bool alive = true;
 HRESULT(__stdcall* IDirect3DDevice9__Present)(LPDIRECT3DDEVICE9 pDevice, CONST RECT* pSrcRect, CONST RECT* pDestRect, HWND hDestWindow, CONST RGNDATA* pDirtyRegion);
 HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONST RECT* pSrcRect, CONST RECT* pDestRect, HWND hDestWindow, CONST RGNDATA* pDirtyRegion)
 {
@@ -219,7 +219,7 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		//disable file settings 'imgui.ini'
 		ImGui::GetIO().IniFilename = NULL;
 
-		ImGui_ImplWin32_EnableDpiAwareness();
+		//ImGui_ImplWin32_EnableDpiAwareness();
 
 		//init DX9 
 		ImGui_ImplDX9_Init(pDevice);
@@ -236,6 +236,8 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		ImGui_ImplDX9_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+
+		ImGui::Text("test123123");
 
 		if (SampDLL != 0)
 		{
@@ -278,6 +280,12 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		ImGui::EndFrame();
 		ImGui::Render();
 		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+
+		if (!alive) {
+			pDevice->Release();
+			//IDirect3DDevice9__Present(pSwapChain, SyncInterval, Flags);
+			return 0;
+		}
 	}
 
 	return IDirect3DDevice9__Present(pDevice, pSrcRect, pDestRect, hDestWindow, pDirtyRegion);
@@ -290,14 +298,14 @@ HRESULT __stdcall IDirect3DDevice9__Reset_Hook(LPDIRECT3DDEVICE9 pDevice, D3DPRE
 	return IDirect3DDevice9__Reset(pDevice, pPresentationParameters);
 }
 
-DWORD WINAPI InitializeAndLoad(LPVOID)
+DWORD WINAPI InitializeAndLoad(LPVOID hModule)
 {
 	Log("InitializeAndLoad");
 
 	while (SampDLL == NULL)
 	{
-		SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("azmp.dll"));
-		//SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("samp.dll"));
+		//SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("azmp.dll"));
+		SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("samp.dll"));
 		Sleep(1);
 	}
 
@@ -311,8 +319,7 @@ DWORD WINAPI InitializeAndLoad(LPVOID)
 
 	MH_CreateHook(get_function_address(16), &IDirect3DDevice9__Reset_Hook, reinterpret_cast<void**>(&IDirect3DDevice9__Reset));
 	MH_EnableHook(get_function_address(16));
-
-	//CreateThread(0, 0, &GetKeys, 0, 0, 0);
+	
 	return 0;
 }
 
@@ -328,12 +335,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 			MH_Initialize();
 
-			CreateThread(0, 0, &InitializeAndLoad, 0, 0, 0);
+			CreateThread(0, 0, &InitializeAndLoad, hModule, 0, 0);
 
 			break;
 		}
 		case DLL_PROCESS_DETACH:
 		{
+			MH_DisableHook(get_function_address(17));
+			MH_DisableHook(get_function_address(16));
+
+			MH_RemoveHook(get_function_address(17));
+			MH_RemoveHook(get_function_address(16));
+
+			SetWindowLongPtr(**(HWND**)0xC17054, GWL_WNDPROC, (LRESULT)oWndProc);
+
 			break;
 		}
 	}

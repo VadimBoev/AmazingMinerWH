@@ -51,8 +51,7 @@ int unload_dll_by_name(HANDLE proc, const char* dll)
 
 	HMODULE k32 = GetModuleHandle("kernel32.dll");
 	LPVOID get_module_handle_adr = GetProcAddress(k32, "GetModuleHandleA");
-	HANDLE thread = CreateRemoteThread(proc, NULL, NULL,
-		(LPTHREAD_START_ROUTINE)get_module_handle_adr, remote_string_address, NULL, NULL);
+	HANDLE thread = CreateRemoteThread(proc, NULL, NULL,(LPTHREAD_START_ROUTINE)get_module_handle_adr, remote_string_address, NULL, NULL);
 	WaitForSingleObject(thread, INFINITE);
 
 	DWORD dll_handle;
@@ -95,6 +94,30 @@ HMODULE load_dll(HANDLE proc, const char* dll_path)
 	return (HMODULE)dll_handle;
 }
 
+std::string GetLastErrorAsString()
+{
+	//Get the error message ID, if any.
+	DWORD errorMessageID = ::GetLastError();
+	if (errorMessageID == 0) {
+		return std::string(); //No error message has been recorded
+	}
+
+	LPSTR messageBuffer = nullptr;
+
+	//Ask Win32 to give us the string version of that message ID.
+	//The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message string will be).
+	size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+
+	//Copy the error message into a std::string.
+	std::string message(messageBuffer, size);
+
+	//Free the Win32's string's buffer.
+	LocalFree(messageBuffer);
+
+	return message;
+}
+
 #include <filesystem>
 #include <iostream>
 int main()
@@ -102,11 +125,13 @@ int main()
     HANDLE hProcess = 0;
     DWORD processID;
 
-    HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
-	//HWND hwnd = FindWindowA(NULL, "GTA:SA:MP");
+    //HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
+	HWND hwnd = FindWindowA(NULL, "GTA:SA:MP");
 
 	std::string path = std::filesystem::current_path().string();
-	path += "\\AmazingMinerWH.asi";
+	path += "\\AmazingMinerWH.dll";
+
+	HMODULE test = nullptr;
 
     if (hwnd == NULL)
     {
@@ -118,25 +143,21 @@ int main()
         GetWindowThreadProcessId(hwnd, &processID);
         hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
 
-		if (unload_dll_by_name(hProcess, (char*)path.c_str())) //G:\\sampr3\\AmazingMinerWH.asi
+		while (true)
 		{
-			printf("unload dll!");
+			if (GetAsyncKeyState(VK_END) & 1)
+			{
+				int error = unload_dll_by_name(hProcess, "AmazingMinerWH.dll");
+				if (error) Log("Success unload from game");
+				else Log("Fail unload from game '%s'", GetLastErrorAsString().c_str());
+				Log("Error code %d", error);
+			}
+			if (GetAsyncKeyState(VK_DELETE) & 1)
+			{
+				test = load_dll(hProcess, (char*)path.c_str());
+				if (test) Log("Success load dll!");
+				else Log("Fail load dll '%s'", GetLastErrorAsString().c_str());
+			}
 		}
-		else
-		{
-			printf("dll not found in memory!");
-		}
-
-        if (load_dll(hProcess, (char*)path.c_str()))
-        {
-            printf("access!");
-        }
-        else
-        {
-            printf("fail! %s");
-        }
     }
-	system("pause");
-
-	unload_dll_by_name(hProcess, (char*)path.c_str());
 }

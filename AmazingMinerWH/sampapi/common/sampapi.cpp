@@ -13,8 +13,8 @@
 SAMPAPI_COMMON_BEGIN
 
 unsigned long GetBase() {
-    //static auto handle = reinterpret_cast<unsigned long>(GetModuleHandleA("samp.dll"));
-	static auto handle = reinterpret_cast<unsigned long>(GetModuleHandleA("azmp.dll"));
+    static auto handle = reinterpret_cast<unsigned long>(GetModuleHandleA("samp.dll"));
+	//static auto handle = reinterpret_cast<unsigned long>(GetModuleHandleA("azmp.dll"));
     return handle;
 }
 
