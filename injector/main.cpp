@@ -125,8 +125,8 @@ int main()
     HANDLE hProcess = 0;
     DWORD processID;
 
-    //HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
-	HWND hwnd = FindWindowA(NULL, "GTA:SA:MP");
+    HWND hwnd = FindWindowA(NULL, "AMAZING ONLINE");
+	//HWND hwnd = FindWindowA(NULL, "GTA:SA:MP");
 
 	std::string path = std::filesystem::current_path().string();
 	path += "\\AmazingMinerWH.dll";

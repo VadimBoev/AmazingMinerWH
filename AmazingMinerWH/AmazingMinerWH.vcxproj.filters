@@ -64,6 +64,7 @@
     <ClCompile Include="sampapi\common\CRect.cpp" />
     <ClCompile Include="sampapi\common\CVector.cpp" />
     <ClCompile Include="sampapi\common\sampapi.cpp" />
+    <ClCompile Include="BitStream.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MinHook.h" />
@@ -192,5 +193,8 @@
     <ClInclude Include="sampapi\common\CRect.h" />
     <ClInclude Include="sampapi\common\CVector.h" />
     <ClInclude Include="sampapi\common\sampapi.h" />
+    <ClInclude Include="BitStream.h" />
+    <ClInclude Include="RakClient.h" />
+    <ClInclude Include="main.h" />
   </ItemGroup>
 </Project>

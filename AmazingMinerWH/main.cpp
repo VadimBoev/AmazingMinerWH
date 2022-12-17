@@ -1,33 +1,12 @@
-#define _CRT_SECURE_NO_WARNINGS
-
-#include <iostream>
-#include <cstdlib>
-#include <Windows.h>
-#include <TlHelp32.h>
-#include <tchar.h>
-#include <windows.h>
-#include <string>
-
-#include <fcntl.h>
-#include <io.h>
-
-#include <d3dx9.h>
-#include "MinHook.h"
-#pragma comment(lib, "libMinHook.x86.lib")
-
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_win32.h"
-#include "imgui/imgui_impl_dx9.h"
-#include "imgui/imgui_internal.h"
-
-
-#include "CObjectPool.h"
-#include "CNetGame.h"
-#include "CGame.h"
-
-#define SAMP_037_R3_1
+#include "main.h"
 
 uintptr_t SampDLL = 0;
+uintptr_t AmazingDLL = 0;
+
+#define inRPC 0
+#define outRPC 1
+#define inPacket 2
+#define outPacket 3
 
 FILE* g_flLog = NULL;
 void Log(const char* fmt, ...)
@@ -39,7 +18,7 @@ void Log(const char* fmt, ...)
 	if (g_flLog == NULL)
 	{
 		char	filename[512];
-		snprintf(filename, sizeof(filename), "C:\\Users\\VadimPC\\source\\repos\\AmazingMinerWH\\Debug\\client.log");
+		snprintf(filename, sizeof(filename), "G:\\sampr3\\client.log");
 
 		g_flLog = fopen(filename, "w");
 		if (g_flLog == NULL)
@@ -203,7 +182,8 @@ LRESULT WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
 }
 
-bool alive = true;
+void RenderDebug();
+
 HRESULT(__stdcall* IDirect3DDevice9__Present)(LPDIRECT3DDEVICE9 pDevice, CONST RECT* pSrcRect, CONST RECT* pDestRect, HWND hDestWindow, CONST RGNDATA* pDirtyRegion);
 HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONST RECT* pSrcRect, CONST RECT* pDestRect, HWND hDestWindow, CONST RGNDATA* pDirtyRegion)
 {
@@ -219,13 +199,17 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		//disable file settings 'imgui.ini'
 		ImGui::GetIO().IniFilename = NULL;
 
-		//ImGui_ImplWin32_EnableDpiAwareness();
+		//mouse fix
+		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
 		//init DX9 
 		ImGui_ImplDX9_Init(pDevice);
 
 		//set style imgui (default)
 		ImGui::StyleColorsDark();
+
+		sampapi::v037r3::CGame* pGame = new sampapi::v037r3::CGame();
+		pGame->SetCursorMode(0, false);
 
 		ImInit = true;
 	}
@@ -237,12 +221,12 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Text("test123123");
-
 		if (SampDLL != 0)
 		{
 			if (sampapi::v037r3::RefNetGame())
 			{
+				//RenderDebug();
+
 				auto drawlist = ImGui::GetBackgroundDrawList();
 
 				for (int i = 0; i < 1000; i++)
@@ -280,14 +264,7 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		ImGui::EndFrame();
 		ImGui::Render();
 		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-
-		if (!alive) {
-			pDevice->Release();
-			//IDirect3DDevice9__Present(pSwapChain, SyncInterval, Flags);
-			return 0;
-		}
 	}
-
 	return IDirect3DDevice9__Present(pDevice, pSrcRect, pDestRect, hDestWindow, pDirtyRegion);
 }
 
@@ -298,14 +275,268 @@ HRESULT __stdcall IDirect3DDevice9__Reset_Hook(LPDIRECT3DDEVICE9 pDevice, D3DPRE
 	return IDirect3DDevice9__Reset(pDevice, pPresentationParameters);
 }
 
+uintptr_t GetOffset(uintptr_t addr)
+{
+	return addr - 0x541C1000;
+}
+
+std::list<std::string> InRPC;
+std::list<std::string> OutRPC;
+std::list<std::string> InPacket;
+std::list<std::string> OutPacket;
+void RenderDebug()
+{
+	ImGui::SetNextWindowSize(ImVec2(950,350));
+	ImGui::Begin("Amazing Debug");
+
+	ImGui::Text("Debug InRPC");
+	for (auto entry : InRPC)
+	{
+		ImGui::Text("%s", entry.c_str());
+	}
+
+	ImGui::Text("\n");
+
+	ImGui::Text("Debug OutRPC");
+	for (auto entry : OutRPC)
+	{
+		ImGui::Text("%s", entry.c_str());
+	}
+
+	ImGui::Text("AmazingDLL 0x%X", AmazingDLL);
+	//ImGui::Text("Amazing test 0x%X", GetOffset());
+
+	/*
+	ImGui::Text("\n");
+
+	ImGui::Text("Debug InPacket");
+	for (auto entry : InPacket)
+	{
+		ImGui::Text("%s", entry.c_str());
+	}
+
+	ImGui::Text("\n");
+
+	ImGui::Text("Debug OutPacket");
+	for (auto entry : OutPacket)
+	{
+		ImGui::Text("%s", entry.c_str());
+	}
+	*/
+	ImGui::End();
+}
+
+void DebugWrite(BYTE type, char* szFormat, ...)
+{
+	char tmp_buf[512];
+	memset(tmp_buf, 0, sizeof(tmp_buf));
+
+	va_list args;
+	va_start(args, szFormat);
+	vsprintf(tmp_buf, szFormat, args);
+	va_end(args);
+
+	if (type == inRPC)
+	{
+		if (InRPC.size() >= 8)
+			InRPC.pop_front();
+
+		InRPC.push_back(tmp_buf);
+	}
+	else if (type == outRPC)
+	{
+		if (OutRPC.size() >= 8)
+			OutRPC.pop_front();
+
+		OutRPC.push_back(tmp_buf);
+	}
+	else if (type == inPacket)
+	{
+		if (InPacket.size() >= 8)
+			InPacket.pop_front();
+
+		InPacket.push_back(tmp_buf);
+	}
+	else if (type == outPacket)
+	{
+		if (OutPacket.size() >= 8)
+			OutPacket.pop_front();
+
+		OutPacket.push_back(tmp_buf);
+	}
+}
+
+bool (__thiscall* oOutRPC)(void*, int*, BitStream*, PacketPriority, PacketReliability, char, bool);
+bool __fastcall hkOutRPC(void* pThis, void* pUnk, int* uniqueID, BitStream* bitStream, PacketPriority priority, PacketReliability reliability, char orderingChannel, bool shiftTimestamp)
+{
+	if (*uniqueID == 252)
+	{
+		int iBitLength = bitStream->GetNumberOfBitsUsed();
+
+		if (iBitLength == 432)
+		{
+			BitStream bsData((unsigned char*)bitStream->GetData(), (iBitLength / 8) + 1, false);
+
+			BYTE unk1;
+			WORD unk2;
+			BYTE unk3;
+			BYTE unk4;
+			BYTE unk5;
+
+			bsData.Read(unk1);
+			bsData.Read(unk2);
+			bsData.Read(unk3);
+			bsData.Read(unk4);
+			bsData.Read(unk5);
+
+			DebugWrite(outRPC, "%d, %d, %d, %d, %d", unk1, unk2, unk3, unk4, unk5);
+		}
+	}
+
+	return oOutRPC(pThis, uniqueID, bitStream, priority, reliability, orderingChannel, shiftTimestamp);
+}
+
+#define MAX_ALLOCA_STACK_ALLOCATION 1048576
+
+bool RPC(int uniqueID, BitStream* bitStream, PacketPriority priority, PacketReliability reliability, char orderingChannel, bool shiftTimestamp)
+{
+	return ((bool (*)(RakClientInterface*, int, BitStream*, PacketPriority, PacketReliability, char, bool))(SampDLL + 0x33EE0))(sampapi::v037r3::RefNetGame()->m_pRakClient, uniqueID, bitStream, priority, reliability, orderingChannel, shiftTimestamp);
+}
+
+bool (__thiscall* oInRPC)(void*, const char*, int, PlayerID);
+bool __fastcall hkInRPC(void* thiz, void* b, const char* data, int length, PlayerID playerId)
+{
+	BitStream incomingBitStream((unsigned char*)data, length, false);
+	int* uniqueIdentifier = 0;
+	unsigned char* userData;
+	RPCNode* node;
+	RPCParameters rpcParms;
+	BitStream replyToSender;
+	rpcParms.replyToSender = &replyToSender;
+
+	rpcParms.recipient = 0;
+	rpcParms.sender = playerId;
+
+	// Note to self - if I change this format then I have to change the PacketLogger class too
+	incomingBitStream.IgnoreBits(8);
+	if (data[0] == ID_TIMESTAMP)
+		incomingBitStream.IgnoreBits(8 * (sizeof(RakNetTime) + sizeof(unsigned char)));
+
+	incomingBitStream.Read((char*)&uniqueIdentifier, 1);
+	if (incomingBitStream.ReadCompressed(rpcParms.numberOfBitsOfData) == false)
+	{
+		return false;
+	}
+
+	// Call the function
+	if (rpcParms.numberOfBitsOfData == 0)
+	{
+
+	}
+	else
+	{
+		if (incomingBitStream.GetNumberOfUnreadBits() == 0)
+		{
+			return false; // No data was appended!
+		}
+
+		// We have to copy into a new data chunk because the user data might not be byte aligned.
+		bool usedAlloca = false;
+
+		if (BITS_TO_BYTES(incomingBitStream.GetNumberOfUnreadBits()) < MAX_ALLOCA_STACK_ALLOCATION)
+		{
+			userData = (unsigned char*)alloca(BITS_TO_BYTES(incomingBitStream.GetNumberOfUnreadBits()));
+			usedAlloca = true;
+		}
+		else
+			userData = new unsigned char[BITS_TO_BYTES(incomingBitStream.GetNumberOfUnreadBits())];
+
+		if (incomingBitStream.ReadBits((unsigned char*)userData, rpcParms.numberOfBitsOfData, false) == false)
+		{
+			return false; // Not enough data to read
+		}
+
+		// Call the function callback
+		rpcParms.input = userData;
+
+		if(uniqueIdentifier == (int*)252)
+		{
+			unsigned char* Data = reinterpret_cast<unsigned char*>(rpcParms.input);
+			int iBitLength = rpcParms.numberOfBitsOfData;
+
+			//if 41 bitlength == show or hide button ???
+
+		
+
+			//if (iBitLength == 472 || iBitLength == 41)
+			//{
+				BitStream bsData((unsigned char*)Data, (iBitLength / 8) + 1, false);
+				 
+				BYTE unk1;
+				WORD unk2;
+				BYTE unk3;
+				BYTE unk4;
+				BYTE unk5;
+				BYTE unk6;
+				BYTE unk7;
+				BYTE unk8;
+				BYTE unk9;
+				BYTE unk10;
+				BYTE unk11;
+
+				bsData.Read(unk1);
+				bsData.Read(unk2);
+				bsData.Read(unk3);
+				bsData.Read(unk4);
+				bsData.Read(unk5);
+				bsData.Read(unk6);
+				bsData.Read(unk7);
+				bsData.Read(unk8);
+				bsData.Read(unk9);
+				bsData.Read(unk10);
+				bsData.Read(unk11);
+
+				DebugWrite(inRPC, "[%d] id: %d (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)", iBitLength, uniqueIdentifier, unk1, unk2, unk3, unk4, unk5, unk6, unk7, unk8, unk9, unk10, unk11);
+				
+			//}
+
+				//RPC(252, &bsData, HIGH_PRIORITY, RELIABLE_ORDERED, 7, false);
+		}
+
+
+		if (usedAlloca == false)
+			delete[] userData;
+	}
+
+	return oInRPC(thiz, data, length, playerId);
+}
+
+Packet* (__fastcall* oInPacket)(void*);
+Packet* __fastcall hkInPacket(void* dis)
+{
+	Packet* packet = oInPacket(dis);
+	if (packet != nullptr && packet->data && packet->length > 0) 
+	{
+		DebugWrite(inPacket, "id %d", packet->data[0]);
+	}
+	return packet;
+}
+
+void (__fastcall* o_bsWrite)(int* thiz, unsigned int* a2, signed int a3, char a4);
+void __fastcall hk_bsWrite(int* thiz, unsigned int* a2, signed int a3, char a4)
+{
+	DebugWrite(inRPC, "a3: %d", a3);
+	return o_bsWrite(thiz, a2, a3, a4);
+}
+
 DWORD WINAPI InitializeAndLoad(LPVOID hModule)
 {
 	Log("InitializeAndLoad");
 
 	while (SampDLL == NULL)
 	{
-		//SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("azmp.dll"));
-		SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("samp.dll"));
+		SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("azmp.dll"));
+		//SampDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("samp.dll"));
 		Sleep(1);
 	}
 
@@ -314,12 +545,36 @@ DWORD WINAPI InitializeAndLoad(LPVOID hModule)
 		Log("***Base AZ:MP (SA:MP 0.3.7 R3) address = 0x%X", SampDLL);
 	}
 
+	AmazingDLL = reinterpret_cast<uintptr_t>(GetModuleHandle("aggmain.asi"));
+	Log("***Base aggmain.as address = 0x%X", AmazingDLL);
+
 	MH_CreateHook(get_function_address(17), &IDirect3DDevice9__Present_Hook, reinterpret_cast<void**>(&IDirect3DDevice9__Present));
 	MH_EnableHook(get_function_address(17));
 
 	MH_CreateHook(get_function_address(16), &IDirect3DDevice9__Reset_Hook, reinterpret_cast<void**>(&IDirect3DDevice9__Reset));
 	MH_EnableHook(get_function_address(16));
-	
+
+	//out rpc
+	MH_CreateHook((void*)(SampDLL + 0x33EE0), &hkOutRPC, (void**)(&oOutRPC));
+	MH_EnableHook((void*)(SampDLL + 0x33EE0));
+
+	//HandleRPCPacket incoming rpc
+	MH_CreateHook((void*)(SampDLL + 0x3A6A0), &hkInRPC, (void**)(&oInRPC));
+	MH_EnableHook((void*)(SampDLL + 0x3A6A0));
+
+	//MH_CreateHook((void*)(SampDLL + 0x1F8A0), &hk_bsWrite, (void**)(&o_bsWrite));
+	//MH_EnableHook((void*)(SampDLL + 0x1F8A0));
+
+	//CRakPeer::ReceivePacket (incoming packet)
+	//R1 0x31710 R3 0x34530
+	//MH_CreateHook((void*)(SampDLL + 0x34530), &hkInPacket, (void**)(&oInPacket));
+	//MH_EnableHook((void*)(SampDLL + 0x34530));
+
+	//CRakPeer::Send (outcoming packet)
+	//R1 0x307F0 R3 0x33BA0
+	//MH_CreateHook((void*)(SampDLL + 0x33BA0), &hkOutPacket, (void**)(&oOutPacket));
+	//MH_EnableHook((void*)(SampDLL + 0x33BA0));
+
 	return 0;
 }
 
@@ -343,11 +598,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		{
 			MH_DisableHook(get_function_address(17));
 			MH_DisableHook(get_function_address(16));
+			MH_DisableHook((void*)(SampDLL + 0x33EE0)); //hook RPC
+			MH_DisableHook((void*)(SampDLL + 0x3A6A0)); //hook HandleRPCPacket
+			//MH_DisableHook((void*)(SampDLL + 0x34530)); //hook CRakPeer::ReceivePacket
 
 			MH_RemoveHook(get_function_address(17));
 			MH_RemoveHook(get_function_address(16));
+			MH_RemoveHook((void*)(SampDLL + 0x33EE0)); //hook RPC
+			MH_RemoveHook((void*)(SampDLL + 0x3A6A0)); //hook HandleRPCPacket
+			//MH_RemoveHook((void*)(SampDLL + 0x34530)); //hook CRakPeer::ReceivePacket
 
-			SetWindowLongPtr(**(HWND**)0xC17054, GWL_WNDPROC, (LRESULT)oWndProc);
+			///SetWindowLongPtr(**(HWND**)0xC17054, GWL_WNDPROC, (LRESULT)oWndProc);
+			SetWindowLongA(FindWindowA(NULL, "AMAZING ONLINE"), GWL_WNDPROC, LONG(oWndProc));
 
 			break;
 		}
