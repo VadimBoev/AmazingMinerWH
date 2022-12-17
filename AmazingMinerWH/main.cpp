@@ -208,9 +208,6 @@ HRESULT __stdcall IDirect3DDevice9__Present_Hook(LPDIRECT3DDEVICE9 pDevice, CONS
 		//set style imgui (default)
 		ImGui::StyleColorsDark();
 
-		sampapi::v037r3::CGame* pGame = new sampapi::v037r3::CGame();
-		pGame->SetCursorMode(0, false);
-
 		ImInit = true;
 	}
 	else
